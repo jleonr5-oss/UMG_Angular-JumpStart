@@ -1,0 +1,43 @@
+name: SonarQube Cloud
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build-and-analyze:
+    name: Build, Test y Análisis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # historial completo para New Code y blame
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci --legacy-peer-deps
+
+      - name: Compilar
+        run: npx ng build
+
+      - name: Pruebas unitarias
+        run: |
+          if npm ls karma > /dev/null 2>&1; then
+            npx ng test --watch=false --browsers=ChromeHeadless --code-coverage
+          else
+            echo "El proyecto no tiene ejecutor de pruebas (Karma) instalado; se omite."
+          fi
+
+      - name: Análisis SonarQube Cloud
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
